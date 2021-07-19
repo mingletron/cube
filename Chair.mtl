@@ -1,0 +1,45 @@
+# Blender MTL File: 'Chair.blend'
+# Material Count: 4
+
+newmtl Kitchen_wood
+Ns 225.000000
+Ka 1.000000 1.000000 1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+map_Bump /media/gareth/Win-Data/blender/Blender/Guru/Chair/kitchen_wood_4k_png/kitchen_wood_nor_4k.png
+map_Kd /media/gareth/Win-Data/blender/Blender/Guru/Chair/kitchen_wood_4k_png/kitchen_wood_diff_4k.png
+map_Ns /media/gareth/Win-Data/blender/Blender/Guru/Chair/kitchen_wood_4k_png/kitchen_wood_rough_4k.png
+
+newmtl Material
+Ns 225.000000
+Ka 1.000000 1.000000 1.000000
+Kd 0.800000 0.585117 0.627946
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+
+newmtl inner-screw
+Ns 127.935943
+Ka 1.000000 1.000000 1.000000
+Kd 0.053696 0.053696 0.053696
+Ks 0.555195 0.555195 0.555195
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 3
+
+newmtl screw
+Ns 127.935943
+Ka 1.000000 1.000000 1.000000
+Kd 0.296098 0.296098 0.296098
+Ks 0.555195 0.555195 0.555195
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 3
