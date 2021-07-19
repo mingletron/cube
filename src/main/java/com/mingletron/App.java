@@ -87,21 +87,19 @@ public class App extends Application {
 
         pane = new AnchorPane(canvas);
         var meshLabel = new Label("Default Cube");
-        meshLabel.setTextFill(Color.GRAY);
+        meshLabel.setTextFill(Color.WHITE);
         var triLabel = new Label("Triangles: " + triangles);
         triLabel.setTextFill(Color.WHITE);
         var filledCheckBox = new CheckBox();
         filledCheckBox.setText("Filled");
-        filledCheckBox.setTextFill(Color.GRAY);
-        var bfcCheckBox = new CheckBox();
-        bfcCheckBox.setText("clipping");
-        bfcCheckBox.setTextFill(Color.GRAY);
+        filledCheckBox.setTextFill(Color.WHITE);
+        
         pane.getChildren().add(loadButton);
         pane.getChildren().add(meshLabel);
         pane.getChildren().add(colorPicker);
         pane.getChildren().add(triLabel);
         pane.getChildren().add(filledCheckBox);
-        pane.getChildren().add(bfcCheckBox);
+      
         pane.setTopAnchor(meshLabel, 5.0);
         pane.setLeftAnchor(meshLabel, 60.0);
         pane.setRightAnchor(colorPicker, 10.0);
@@ -109,9 +107,7 @@ public class App extends Application {
         pane.setRightAnchor(triLabel, 200.0);
         pane.setLeftAnchor(filledCheckBox, 200.0);
         pane.setTopAnchor(filledCheckBox, 5.0);
-        pane.setLeftAnchor(bfcCheckBox, 300.0);
-        pane.setTopAnchor(bfcCheckBox, 5.0);
-        bfcCheckBox.setSelected(clipping);
+       
 
         scene3d = new Scene(pane);
         primaryStage.setScene(scene3d);
@@ -126,10 +122,6 @@ public class App extends Application {
             filledTriangles = !filledTriangles;
         });
 
-        bfcCheckBox.setOnAction(action -> {
-            bfcCheckBox.setSelected(!clipping);
-            clipping = !clipping;
-        });
 
         loadButton.setOnAction(action -> {
             FileChooser fileChooser = new FileChooser();
@@ -201,7 +193,7 @@ public class App extends Application {
                 }
 
                 // background image clears canvas
-                gc.setFill(Color.BLACK);
+                gc.setFill(Color.gray(0.5));
                 gc.fillRect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
                 var matRotZ = new Mat4x4();
                 var matRotX = new Mat4x4();
@@ -267,9 +259,20 @@ public class App extends Application {
                     if (!clipping || (normal.x * (triTranslated.p[0].x - vCamera.x)
                             + normal.y * (triTranslated.p[0].y - vCamera.y)
                             + normal.z * (triTranslated.p[0].z - vCamera.z) < 0.0)) {
+
+                        // Illumination
+                        Vec3d lightDirection = new Vec3d(0.0f, 0.0f, -1.0f);
+                        float l = (float)  Math.sqrt(lightDirection.x * lightDirection.x + lightDirection.y * lightDirection.y + lightDirection.z * lightDirection.z);
+                        lightDirection.x /= l; lightDirection.y /= l; lightDirection.z /= l;
+
+                        float dp = normal.x * lightDirection.x + normal.y * lightDirection.y + normal.z * lightDirection.z;
+                        triTranslated.colour = calculateColor(meshColor, dp);
+
+                        // Project triangles from 3D --> 2D        
                         triProjected.p[0] = multiplyMatrixVector(triTranslated.p[0], matProj);
                         triProjected.p[1] = multiplyMatrixVector(triTranslated.p[1], matProj);
                         triProjected.p[2] = multiplyMatrixVector(triTranslated.p[2], matProj);
+                        triProjected.colour = triTranslated.colour;
 
                         // Scale into view
                         triProjected.p[0].x += 1.0f;
@@ -287,8 +290,9 @@ public class App extends Application {
                         triProjected.p[2].y *= 0.5f * (float) WINDOW_HEIGHT;
 
                         if (filledTriangles) {
-                            gc.setStroke(meshColor);
-                            gc.setFill(meshColor);
+                            gc.setStroke(triProjected.colour);
+                            gc.setFill(triProjected.colour);
+                            gc.setLineWidth(0);
                             gc.fillPolygon(
                                     new double[] { triProjected.p[0].x, triProjected.p[1].x, triProjected.p[2].x },
                                     new double[] { triProjected.p[0].y, triProjected.p[1].y, triProjected.p[2].y }, 3);
@@ -298,21 +302,21 @@ public class App extends Application {
                             if (triangleColourMode) {
                                 gc.setStroke(Color.RED);
                             } else {
-                                gc.setStroke(meshColor);
+                                gc.setStroke(triProjected.colour);
                             }
                             gc.strokeLine((int) triProjected.p[0].x, (int) triProjected.p[0].y,
                                     (int) triProjected.p[1].x, (int) triProjected.p[1].y);
                             if (triangleColourMode) {
                                 gc.setStroke(Color.GREEN);
                             } else {
-                                gc.setStroke(meshColor);
+                                gc.setStroke(triProjected.colour);
                             }
                             gc.strokeLine((int) triProjected.p[1].x, (int) triProjected.p[1].y,
                                     (int) triProjected.p[2].x, (int) triProjected.p[2].y);
                             if (triangleColourMode) {
                                 gc.setStroke(Color.BLUE);
                             } else {
-                                gc.setStroke(meshColor);
+                                gc.setStroke(triProjected.colour);
                             }
                             gc.strokeLine((int) triProjected.p[2].x, (int) triProjected.p[2].y,
                                     (int) triProjected.p[0].x, (int) triProjected.p[0].y);
@@ -444,12 +448,18 @@ public class App extends Application {
     public static class Triangle implements Serializable {
 
         Vec3d[] p = new Vec3d[3];
+        Color colour;
 
         public Triangle() {
         }
 
         public Triangle(Vec3d v1, Vec3d v2, Vec3d v3) {
             this.p = new Vec3d[] { v1, v2, v3 };
+        }
+
+        public Triangle(Vec3d v1, Vec3d v2, Vec3d v3, Color col) {
+            this.p = new Vec3d[] { v1, v2, v3 };
+            this.colour = col;
         }
     }
 
@@ -547,6 +557,14 @@ public class App extends Application {
         }
         reader.close();
 
+    }
+
+    private Color calculateColor(Color colour, float lum) {
+        lum = Math.abs(lum);
+        return new Color(colour.getRed()*lum,
+        colour.getGreen()*lum,
+        colour.getBlue()*lum,
+        1.0);
     }
 
 }
