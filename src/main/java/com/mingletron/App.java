@@ -17,8 +17,11 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ColorPicker;
 import java.util.List;
+import java.util.Vector;
+import java.util.stream.Collectors;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
@@ -93,13 +96,13 @@ public class App extends Application {
         var filledCheckBox = new CheckBox();
         filledCheckBox.setText("Filled");
         filledCheckBox.setTextFill(Color.WHITE);
-        
+
         pane.getChildren().add(loadButton);
         pane.getChildren().add(meshLabel);
         pane.getChildren().add(colorPicker);
         pane.getChildren().add(triLabel);
         pane.getChildren().add(filledCheckBox);
-      
+
         pane.setTopAnchor(meshLabel, 5.0);
         pane.setLeftAnchor(meshLabel, 60.0);
         pane.setRightAnchor(colorPicker, 10.0);
@@ -107,7 +110,6 @@ public class App extends Application {
         pane.setRightAnchor(triLabel, 200.0);
         pane.setLeftAnchor(filledCheckBox, 200.0);
         pane.setTopAnchor(filledCheckBox, 5.0);
-       
 
         scene3d = new Scene(pane);
         primaryStage.setScene(scene3d);
@@ -121,7 +123,6 @@ public class App extends Application {
             filledCheckBox.setSelected(!filledTriangles);
             filledTriangles = !filledTriangles;
         });
-
 
         loadButton.setOnAction(action -> {
             FileChooser fileChooser = new FileChooser();
@@ -215,6 +216,8 @@ public class App extends Application {
                 matRotX.m[2][2] = (float) Math.cos(fTheta * 0.5f);
                 matRotX.m[3][3] = 1.0f;
 
+                List<Triangle> vecTrianglesToRaster = new ArrayList<>();
+
                 for (Triangle t : meshCube.tris) {
 
                     triRotatedZ.p[0] = multiplyMatrixVector(t.p[0], matRotZ);
@@ -262,13 +265,17 @@ public class App extends Application {
 
                         // Illumination
                         Vec3d lightDirection = new Vec3d(0.0f, 0.0f, -1.0f);
-                        float l = (float)  Math.sqrt(lightDirection.x * lightDirection.x + lightDirection.y * lightDirection.y + lightDirection.z * lightDirection.z);
-                        lightDirection.x /= l; lightDirection.y /= l; lightDirection.z /= l;
+                        float l = (float) Math.sqrt(lightDirection.x * lightDirection.x
+                                + lightDirection.y * lightDirection.y + lightDirection.z * lightDirection.z);
+                        lightDirection.x /= l;
+                        lightDirection.y /= l;
+                        lightDirection.z /= l;
 
-                        float dp = normal.x * lightDirection.x + normal.y * lightDirection.y + normal.z * lightDirection.z;
+                        float dp = normal.x * lightDirection.x + normal.y * lightDirection.y
+                                + normal.z * lightDirection.z;
                         triTranslated.colour = calculateColor(meshColor, dp);
 
-                        // Project triangles from 3D --> 2D        
+                        // Project triangles from 3D --> 2D
                         triProjected.p[0] = multiplyMatrixVector(triTranslated.p[0], matProj);
                         triProjected.p[1] = multiplyMatrixVector(triTranslated.p[1], matProj);
                         triProjected.p[2] = multiplyMatrixVector(triTranslated.p[2], matProj);
@@ -289,41 +296,56 @@ public class App extends Application {
                         triProjected.p[2].x *= 0.5f * (float) WINDOW_WIDTH;
                         triProjected.p[2].y *= 0.5f * (float) WINDOW_HEIGHT;
 
-                        if (filledTriangles) {
-                            gc.setStroke(triProjected.colour);
-                            gc.setFill(triProjected.colour);
-                            gc.setLineWidth(0);
-                            gc.fillPolygon(
-                                    new double[] { triProjected.p[0].x, triProjected.p[1].x, triProjected.p[2].x },
-                                    new double[] { triProjected.p[0].y, triProjected.p[1].y, triProjected.p[2].y }, 3);
-
-                        } else {
-
-                            if (triangleColourMode) {
-                                gc.setStroke(Color.RED);
-                            } else {
-                                gc.setStroke(triProjected.colour);
-                            }
-                            gc.strokeLine((int) triProjected.p[0].x, (int) triProjected.p[0].y,
-                                    (int) triProjected.p[1].x, (int) triProjected.p[1].y);
-                            if (triangleColourMode) {
-                                gc.setStroke(Color.GREEN);
-                            } else {
-                                gc.setStroke(triProjected.colour);
-                            }
-                            gc.strokeLine((int) triProjected.p[1].x, (int) triProjected.p[1].y,
-                                    (int) triProjected.p[2].x, (int) triProjected.p[2].y);
-                            if (triangleColourMode) {
-                                gc.setStroke(Color.BLUE);
-                            } else {
-                                gc.setStroke(triProjected.colour);
-                            }
-                            gc.strokeLine((int) triProjected.p[2].x, (int) triProjected.p[2].y,
-                                    (int) triProjected.p[0].x, (int) triProjected.p[0].y);
-
-                        }
+                        // Store Triangles for sorting
+                         vecTrianglesToRaster.add(
+                             new Triangle(new Vec3d(triProjected.p[0].x, triProjected.p[0].y, triProjected.p[0].z), 
+                             new Vec3d(triProjected.p[1].x, triProjected.p[1].y, triProjected.p[1].z), 
+                             new Vec3d(triProjected.p[2].x, triProjected.p[2].y, triProjected.p[2].z),triProjected.colour));
+    
                     }
 
+                }
+
+                List<Triangle> sortedTriagles = vecTrianglesToRaster.stream()
+                        .sorted(Comparator.comparing(Triangle::getAverageZ, Comparator.reverseOrder()))
+                        .collect(Collectors.toList());
+
+                
+                for (Triangle sT : sortedTriagles) {
+                    if (filledTriangles) {
+
+
+                        gc.setStroke(sT.colour);
+                        gc.setFill(sT.colour);
+                        gc.setLineWidth(0);
+                        gc.fillPolygon(new double[] { sT.p[0].x, sT.p[1].x, sT.p[2].x },
+                                new double[] { sT.p[0].y, sT.p[1].y, sT.p[2].y }, 3);
+
+                    } else {
+
+                        if (triangleColourMode) {
+                            gc.setStroke(Color.RED);
+                        } else {
+                            gc.setStroke(sT.colour);
+                        }
+                        gc.strokeLine((int) sT.p[0].x, (int) sT.p[0].y, (int) sT.p[1].x,
+                                (int) sT.p[1].y);
+                        if (triangleColourMode) {
+                            gc.setStroke(Color.GREEN);
+                        } else {
+                            gc.setStroke(sT.colour);
+                        }
+                        gc.strokeLine((int) sT.p[1].x, (int) sT.p[1].y, (int) sT.p[2].x,
+                                (int) sT.p[2].y);
+                        if (triangleColourMode) {
+                            gc.setStroke(Color.BLUE);
+                        } else {
+                            gc.setStroke(sT.colour);
+                        }
+                        gc.strokeLine((int) sT.p[2].x, (int) sT.p[2].y, (int) sT.p[0].x,
+                                (int) sT.p[0].y);
+
+                    }
                 }
 
             }
@@ -445,7 +467,7 @@ public class App extends Application {
     /**
      * Triangle class containing an array of 3 Vec3ds
      */
-    public static class Triangle implements Serializable {
+    public class Triangle implements Serializable {
 
         Vec3d[] p = new Vec3d[3];
         Color colour;
@@ -461,12 +483,16 @@ public class App extends Application {
             this.p = new Vec3d[] { v1, v2, v3 };
             this.colour = col;
         }
+
+        public float getAverageZ() {
+            return (p[0].z + p[1].z + p[2].z) / 3.0f;
+        }
     }
 
     /**
      * Mesh containing a list of Triangles
      */
-    public static class Mesh implements Serializable {
+    public class Mesh implements Serializable {
         ArrayList<Triangle> tris;
 
         public Mesh() {
@@ -483,7 +509,7 @@ public class App extends Application {
     /**
      * Represents a 4x4 Matrix
      */
-    public static class Mat4x4 implements Serializable {
+    public class Mat4x4 implements Serializable {
         float[][] m = new float[4][4];
     }
 
@@ -527,7 +553,11 @@ public class App extends Application {
             }
         }
         reader.close();
-        getMaterial(file);
+        try {
+            getMaterial(file);
+        } catch (IOException iox) {
+
+        }
         return mesh;
     }
 
@@ -561,10 +591,7 @@ public class App extends Application {
 
     private Color calculateColor(Color colour, float lum) {
         lum = Math.abs(lum);
-        return new Color(colour.getRed()*lum,
-        colour.getGreen()*lum,
-        colour.getBlue()*lum,
-        1.0);
+        return new Color(colour.getRed() * lum, colour.getGreen() * lum, colour.getBlue() * lum, 1.0);
     }
 
 }
